@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { saldoDeFactura, registrarAbono, reversarPago, deudores } from "../src/facturacion.ts";
+import { saldoDeFactura, registrarAbono, reversarPago, deudores, recaudoPorMetodo, normalizarMetodo } from "../src/facturacion.ts";
 import type { Factura, Paciente, Pago } from "../src/modelo.ts";
 
 const factura: Factura = { id: 1, pacienteId: 1, fecha: "2026-11-02", valorTotal: 200000, estado: "EMITIDA" };
@@ -59,4 +59,58 @@ test("deudores desempata por pacienteId", () => {
   const facturas = [f(1, 1, 100000), f(2, 2, 100000)];
   const r = deudores(pacientes, facturas, []);
   assert.deepEqual(r.map((d) => d.pacienteId), [1, 2]);
+});
+
+// --- recaudo ---
+const p = (id: number, fecha: string, valor: number, metodo: string, estado = "APLICADO"): Pago =>
+  ({ id, facturaId: 1, fecha, valor, metodo, estado });
+
+test("normalizarMetodo limpia espacios y unifica mayúsculas", () => {
+  assert.equal(normalizarMetodo(" efectivo "), "EFECTIVO");
+  assert.equal(normalizarMetodo("Nequi"), "NEQUI");
+  assert.equal(normalizarMetodo(""), "SIN METODO");
+});
+
+test("recaudo agrupa por método normalizado en rango inclusivo", () => {
+  const pagos = [
+    p(1, "2026-11-09", 100000, "Efectivo "),
+    p(2, "2026-11-15", 50000, "EFECTIVO"),
+    p(3, "2026-11-09", 30000, "nequi"),
+    p(4, "2026-11-08", 999000, "TARJETA"), // fuera del rango
+    p(5, "2026-11-16", 999000, "TARJETA"), // fuera del rango
+  ];
+  const r = recaudoPorMetodo(pagos, "2026-11-09", "2026-11-15");
+  assert.deepEqual(r, [
+    { metodo: "EFECTIVO", total: 150000 },
+    { metodo: "NEQUI", total: 30000 },
+  ]);
+});
+
+test("recaudo no cuenta pagos reversados", () => {
+  const pagos = [p(1, "2026-11-10", 100000, "TARJETA"), p(2, "2026-11-10", 50000, "TARJETA", "REVERSADO")];
+  assert.deepEqual(recaudoPorMetodo(pagos, "2026-11-09", "2026-11-15"), [{ metodo: "TARJETA", total: 100000 }]);
+});
+
+test("recaudo ignora estados desconocidos (lista blanca APLICADO)", () => {
+  const pagos = [p(1, "2026-11-10", 100000, "TARJETA"), p(2, "2026-11-10", 50000, "TARJETA", "PENDIENTE")];
+  assert.deepEqual(recaudoPorMetodo(pagos, "2026-11-09", "2026-11-15"), [{ metodo: "TARJETA", total: 100000 }]);
+});
+
+test("recaudo usa SIN METODO para método vacío", () => {
+  const pagos = [p(1, "2026-11-10", 200000, "")];
+  assert.deepEqual(recaudoPorMetodo(pagos, "2026-11-09", "2026-11-15"), [{ metodo: "SIN METODO", total: 200000 }]);
+});
+
+test("recaudo ordena alfabéticamente por método", () => {
+  const pagos = [p(1, "2026-11-10", 1, "TARJETA"), p(2, "2026-11-10", 1, "EFECTIVO"), p(3, "2026-11-10", 1, "NEQUI")];
+  assert.deepEqual(recaudoPorMetodo(pagos, "2026-11-09", "2026-11-15").map((r) => r.metodo), ["EFECTIVO", "NEQUI", "TARJETA"]);
+});
+
+test("recaudo rechaza fechas con formato inválido", () => {
+  assert.throws(() => recaudoPorMetodo([], "9/11/2026", "2026-11-15"), /YYYY-MM-DD/);
+  assert.throws(() => recaudoPorMetodo([], "2026-11-09", "2026-11-9"), /YYYY-MM-DD/);
+});
+
+test("recaudo rechaza rango invertido", () => {
+  assert.throws(() => recaudoPorMetodo([], "2026-11-15", "2026-11-09"), /posterior/);
 });

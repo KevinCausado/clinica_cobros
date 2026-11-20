@@ -112,4 +112,62 @@ antes de darles una nueva cita.»
 
 ## Mensaje 3 — Facturación
 
-Pendiente.
+«Necesito el recaudo de la semana por método de pago para la reunión del
+lunes.»
+
+### Cómo lo investigué
+
+1. Revisé `data/pagos.json` y encontré que el campo `metodo` está sucio:
+   viene escrito de 15 formas distintas para solo 4 métodos reales
+   (`" EFECTIVO"`, `"Efectivo "`, `"efectivo"`, `"Nequi"`, `"nequi"`,
+   `"Tarjeta"`, `"tarjeta"`, `"Transferencia "`, etc.), y además hay un
+   pago con el método vacío.
+2. Validé con la IA varias formas de resolverlo. La causa raíz es que
+   `metodo` es texto libre, así que hay que normalizarlo al reportar
+   (`trim` + mayúsculas) y dejar anotado que a futuro conviene un
+   catálogo cerrado.
+3. También detecté que los pagos `REVERSADO` no deben contar como
+   recaudo. En la semana del ejemplo hay 2 reversados ($635.000) que, si
+   se contaran, inflarían NEQUI de $130.000 a $765.000.
+
+### Qué cambié
+
+- `src/facturacion.ts`:
+  - `normalizarMetodo`: limpia espacios, pasa a mayúsculas y convierte
+    el vacío en `"SIN METODO"`.
+  - `recaudoPorMetodo(pagos, desde, hasta)`: suma por método en un rango
+    de fechas **inclusivo**, solo con pagos `APLICADO` (lista blanca),
+    ordenado alfabéticamente. Valida que las fechas sean `YYYY-MM-DD` y
+    que `desde` no sea posterior a `hasta`.
+- `src/cli.ts`: nuevo comando `recaudo` con `--desde`, `--hasta` y
+  `--json`. Sin `--json` muestra una tabla con el total.
+- `tests/facturacion.test.ts`: 8 pruebas (normalización, rango inclusivo,
+  reversados, estado desconocido, método vacío, orden, fecha inválida,
+  rango invertido).
+
+### Decisiones
+
+- **Lista blanca** (`estado === "APLICADO"`): si mañana aparece un estado
+  nuevo, no se cuenta como recaudado. El error "de más" es el peligroso.
+- `"SIN METODO"` para el pago sin método, para que el total cuadre.
+- Orden alfabético por método (determinista).
+- Fecha mal formada o faltante: error claro, no un reporte silencioso
+  equivocado. Igual si `desde > hasta`.
+
+### Verificación
+
+- `npm test` → 24 pruebas, todas pasan.
+- `node src/cli.ts recaudo --desde 2026-11-09 --hasta 2026-11-15 --json`
+  → `[{"metodo":"EFECTIVO","total":910000},{"metodo":"NEQUI","total":130000},
+  {"metodo":"SIN METODO","total":200000},{"metodo":"TARJETA","total":1345000},
+  {"metodo":"TRANSFERENCIA","total":165000}]`.
+- Total de la semana: **$2.750.000**.
+- Errores controlados probados: falta un parámetro, `9/11/2026`,
+  `2026-11-9`, y rango invertido.
+
+### Pendiente / a futuro
+
+- Conviene cerrar el catálogo de métodos (validar al escribir y usar un
+  `<select>` en la web) para que la suciedad no vuelva a aparecer. Hoy el
+  reporte es correcto, pero la causa raíz sigue ahí.
+

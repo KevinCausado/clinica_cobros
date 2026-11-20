@@ -63,3 +63,41 @@ Cosas que tuve que suponer (avísenme si no es así):
   total del paciente, no factura por factura.
 - La deuda la mostramos por paciente. Si necesitan también el detalle
   de cada factura, se lo puedo agregar.
+
+//---------------------------------------------------------
+
+Mensaje 3 de Facturación : «Necesito el recaudo de la semana por método de pago para la reunión del lunes.»
+
+Rta : Hola Facturación,
+
+Les armé un comando para sacar el recaudo por método de pago en el rango
+de fechas que necesiten:
+
+    node src/cli.ts recaudo --desde 2026-11-09 --hasta 2026-11-15
+
+Muestra una tabla con el total por método y el gran total. Si lo corren
+con --json sale la misma información para pasarla a Excel u otro sistema.
+
+Para la semana del 9 al 15 de noviembre da $2.750.000:
+
+    EFECTIVO        $ 910.000
+    NEQUI           $ 130.000
+    SIN METODO      $ 200.000
+    TARJETA         $ 1.345.000
+    TRANSFERENCIA   $ 165.000
+    TOTAL           $ 2.750.000
+
+Dos cosas que ajusté y conviene que sepan:
+
+- Los pagos que se reversaron no se cuentan, porque ese dinero no entró.
+  En esa semana había dos reversados que, si se sumaban, inflaban NEQUI.
+- El método de pago venía escrito de muchas formas (con espacios, en
+  mayúsculas y minúsculas). Lo unifiqué para que todos se sumen juntos.
+  Hay un pago sin método, que aparece como "SIN METODO".
+
+Cosas que tuve que suponer (avísenme si no es así):
+
+- Las dos fechas cuentan, es decir, el rango incluye el día "desde" y el
+  día "hasta".
+- Si escriben una fecha en otro formato (por ejemplo 9/11/2026), el
+  comando avisa con un error en vez de dar una cifra equivocada.

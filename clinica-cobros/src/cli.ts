@@ -1,10 +1,15 @@
 import * as repo from "./repo.ts";
 import { parsePesos, formatoCOP } from "./dinero.ts";
-import { registrarAbono, reversarPago, saldoDeFactura, pagadoDeFactura, deudores } from "./facturacion.ts";
+import { registrarAbono, reversarPago, saldoDeFactura, pagadoDeFactura, deudores, recaudoPorMetodo } from "./facturacion.ts";
 
 const [, , comando, ...resto] = process.argv;
 const json = resto.includes("--json");
 const args = resto.filter((a) => a !== "--json");
+
+function opcion(nombre: string): string {
+  const i = args.indexOf(nombre);
+  return i === -1 ? "" : (args[i + 1] ?? "");
+}
 
 function salida(objeto: unknown, texto: string): void {
   console.log(json ? JSON.stringify(objeto) : texto);
@@ -62,8 +67,23 @@ try {
       );
       break;
     }
+    case "recaudo": {
+      // recaudo --desde YYYY-MM-DD --hasta YYYY-MM-DD
+      const desde = opcion("--desde");
+      const hasta = opcion("--hasta");
+      if (!desde || !hasta) throw new Error("Faltan --desde y --hasta (formato YYYY-MM-DD)");
+      const lista = recaudoPorMetodo(repo.pagos(), desde, hasta);
+      const total = lista.reduce((s, x) => s + x.total, 0);
+      salida(
+        lista,
+        lista.length
+          ? lista.map((r) => `${r.metodo.padEnd(16)} ${formatoCOP(r.total)}`).join("\n") + `\n${"TOTAL".padEnd(16)} ${formatoCOP(total)}`
+          : "No hubo recaudo en ese rango de fechas.",
+      );
+      break;
+    }
     default:
-      console.log("Comandos: facturas | saldo <id> | abonar <id> <valor> <metodo> <fecha> | reversar <pagoId> | deudores   (agrega --json para salida en JSON)");
+      console.log("Comandos: facturas | saldo <id> | abonar <id> <valor> <metodo> <fecha> | reversar <pagoId> | deudores | recaudo --desde YYYY-MM-DD --hasta YYYY-MM-DD   (agrega --json para salida en JSON)");
   }
 } catch (e) {
   console.error("Error:", (e as Error).message);

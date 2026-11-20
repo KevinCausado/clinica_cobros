@@ -76,3 +76,38 @@ export function deudores(pacientes: Paciente[], facturas: Factura[], pagos: Pago
     .filter((d) => d.saldo > 0)
     .sort((a, b) => b.saldo - a.saldo || a.pacienteId - b.pacienteId);
 }
+
+export interface RecaudoMetodo {
+  metodo: string;
+  total: number;
+}
+
+const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Normaliza el método de pago: sin espacios sobrantes y en mayúsculas. */
+export function normalizarMetodo(metodo: string): string {
+  return metodo.trim().toUpperCase() || "SIN METODO";
+}
+
+/**
+ * Recaudo por método de pago en un rango de fechas inclusivo.
+ * Solo cuenta pagos APLICADO (lista blanca): un estado desconocido no infla el total.
+ */
+export function recaudoPorMetodo(pagos: Pago[], desde: string, hasta: string): RecaudoMetodo[] {
+  if (!FORMATO_FECHA.test(desde) || !FORMATO_FECHA.test(hasta)) {
+    throw new Error("Las fechas deben tener formato YYYY-MM-DD (ej: 2026-11-09)");
+  }
+  if (desde > hasta) {
+    throw new Error("--desde no puede ser posterior a --hasta");
+  }
+  const totales = new Map<string, number>();
+  for (const p of pagos) {
+    if (p.estado !== "APLICADO") continue;
+    if (p.fecha < desde || p.fecha > hasta) continue;
+    const metodo = normalizarMetodo(p.metodo);
+    totales.set(metodo, (totales.get(metodo) ?? 0) + p.valor);
+  }
+  return [...totales.entries()]
+    .map(([metodo, total]) => ({ metodo, total }))
+    .sort((a, b) => a.metodo.localeCompare(b.metodo));
+}
