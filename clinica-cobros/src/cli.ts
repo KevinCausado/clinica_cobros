@@ -1,6 +1,6 @@
 import * as repo from "./repo.ts";
 import { parsePesos, formatoCOP } from "./dinero.ts";
-import { registrarAbono, reversarPago, saldoDeFactura, pagadoDeFactura } from "./facturacion.ts";
+import { registrarAbono, reversarPago, saldoDeFactura, pagadoDeFactura, deudores } from "./facturacion.ts";
 
 const [, , comando, ...resto] = process.argv;
 const json = resto.includes("--json");
@@ -52,8 +52,18 @@ try {
       salida({ pagoId: Number(args[0]), estado: "REVERSADO" }, `Pago ${args[0]} reversado`);
       break;
     }
+    case "deudores": {
+      const lista = deudores(repo.pacientes(), repo.facturas(), repo.pagos());
+      salida(
+        lista.map(({ pacienteId, nombre, saldo }) => ({ pacienteId, nombre, saldo })),
+        lista.length
+          ? lista.map((d) => `#${d.pacienteId}  ${d.nombre}  doc ${d.documento}  debe ${formatoCOP(d.saldo)}`).join("\n")
+          : "No hay pacientes con cuentas pendientes.",
+      );
+      break;
+    }
     default:
-      console.log("Comandos: facturas | saldo <id> | abonar <id> <valor> <metodo> <fecha> | reversar <pagoId>   (agrega --json para salida en JSON)");
+      console.log("Comandos: facturas | saldo <id> | abonar <id> <valor> <metodo> <fecha> | reversar <pagoId> | deudores   (agrega --json para salida en JSON)");
   }
 } catch (e) {
   console.error("Error:", (e as Error).message);

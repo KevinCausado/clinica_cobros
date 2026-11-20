@@ -1,9 +1,9 @@
-import type { Factura, Pago } from "./modelo.ts";
+import type { Factura, Paciente, Pago } from "./modelo.ts";
 
 /** Total pagado de una factura (dinero que realmente entró). */
 export function pagadoDeFactura(facturaId: number, pagos: Pago[]): number {
   return pagos
-    .filter((p) => p.facturaId === facturaId && p.estado !== "REVERTIDO")
+    .filter((p) => p.facturaId === facturaId && p.estado !== "REVERSADO")
     .reduce((suma, p) => suma + p.valor, 0);
 }
 
@@ -45,4 +45,34 @@ export function reversarPago(pagos: Pago[], pagoId: number): Pago[] {
   if (!pago) throw new Error(`No existe el pago ${pagoId}`);
   if (pago.estado === "REVERSADO") throw new Error("El pago ya estaba reversado");
   return pagos.map((p) => (p.id === pagoId ? { ...p, estado: "REVERSADO" } : p));
+}
+
+export interface Deudor {
+  pacienteId: number;
+  nombre: string;
+  documento: string;
+  saldo: number;
+}
+
+/**
+ * Pacientes con cuenta pendiente (saldo > 0), mayor deuda primero.
+ * El saldo es la suma de los saldos de sus facturas emitidas: un sobre-pago
+ * en una factura se netea contra las demás (crédito a favor del paciente).
+ */
+export function deudores(pacientes: Paciente[], facturas: Factura[], pagos: Pago[]): Deudor[] {
+  const saldoPorPaciente = new Map<number, number>();
+  for (const f of facturas) {
+    if (f.estado !== "EMITIDA") continue;
+    const actual = saldoPorPaciente.get(f.pacienteId) ?? 0;
+    saldoPorPaciente.set(f.pacienteId, actual + saldoDeFactura(f, pagos));
+  }
+  return pacientes
+    .map((p) => ({
+      pacienteId: p.id,
+      nombre: p.nombre,
+      documento: p.documento,
+      saldo: saldoPorPaciente.get(p.id) ?? 0,
+    }))
+    .filter((d) => d.saldo > 0)
+    .sort((a, b) => b.saldo - a.saldo || a.pacienteId - b.pacienteId);
 }
