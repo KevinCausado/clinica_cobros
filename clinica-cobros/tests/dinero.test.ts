@@ -14,3 +14,6 @@ test("parsePesos rechaza texto", () => {
 test("formatoCOP agrega símbolo", () => {
   assert.match(formatoCOP(1000), /^\$ /);
 });
+test("parsePesos ignora puntos", () => {
+  assert.equal(parsePesos("  90.000 "), 90000);
+});
