@@ -4,7 +4,7 @@ Módulo de caja de la clínica: facturas, abonos y pagos de pacientes.
 Lo usa el personal de **Caja** y **Recepción**. Funciona desde hace unos meses.
 
 ## Requisitos
-- Node.js 22.18 o superior (ejecuta TypeScript directamente; no hay que instalar nada).
+- Node.js 22.6 o superior (probado en 22.18; ejecuta TypeScript directamente, no hay que instalar nada).
 
 ## Uso
 ```
