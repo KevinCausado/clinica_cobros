@@ -13,8 +13,6 @@ pago (Facturación).
 | `clinica-cobros/NOTAS.md` | Proceso seguido: diagnóstico de cada caso, decisiones y verificación |
 | `clinica-cobros/RESPUESTAS.md` | Respuesta a cada área, en lenguaje no técnico |
 | `clinica-cobros/README.md` | Uso del sistema: comandos, pantalla web y datos |
-| `Prueba_tecnica_v4_Un_dia_en_Caja.pdf` | Enunciado original |
-| `AGENTS.md` | Reglas de trabajo que usé con el asistente de IA (permisos, revisión de cambios) |
 
 ## Requisitos
 
@@ -62,10 +60,9 @@ Cualquier comando acepta `--json` para obtener la salida en JSON.
 
 ## Flujo de trabajo
 
-El commit inicial conserva el código original. Sobre él, la rama `solucion`
-tiene tres commits, uno por cada mensaje, de modo que cada caso se puede revisar
-por separado. Si abres el repositorio desde `main`, cambia a `solucion` para ver
-la solución.
+El commit inicial conserva el código original. Sobre él, los tres casos están en
+commits separados (uno por mensaje), de modo que cada cambio se puede revisar de
+forma independiente, y un commit final con la documentación.
 
 El uso de herramientas de IA está declarado en `clinica-cobros/NOTAS.md`, junto
 con el criterio aplicado: la herramienta se usó para analizar y proponer, y cada
